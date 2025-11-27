@@ -1,15 +1,15 @@
 #ifndef UDP_LISTENER_H
 #define UDP_LISTENER_H
 
-#include <vector>
+#include "RadarTypes.h"
 #include "pipeline_element.h"
 
 using namespace std;
 
-class UdpListener : public PipelineElement, public IOutputPort<vector<uint8_t>>
+class UdpListener : public PipelineElement, public IOutputPort<RawVideoData>
 {
 private:
-  IInputPort<vector<uint8_t>> *downstream_port = nullptr;
+  IInputPort<RawVideoData> *downstream_port = nullptr;
   int port;
 
 protected:
@@ -20,7 +20,7 @@ public:
   UdpListener(int port);
   ~UdpListener();
 
-  void connect_to_output(IInputPort<vector<uint8_t>>* port) override {
+  void connect_to_output(IInputPort<RawVideoData>* port) override {
       downstream_port = port;
   }
 };

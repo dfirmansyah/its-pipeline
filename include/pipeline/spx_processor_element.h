@@ -9,12 +9,12 @@
 using namespace std;
 
 class SpxProcessorElement : public PipelineElement,
-                     public IInputPort<vector<uint8_t>>,
+                     public IInputPort<RawVideoData>,
                      public IOutputPort<RadarVideoSweep>
 {
 private:
   IInputPort<RadarVideoSweep> *downstream_port = nullptr;
-  ThreadSafeQueue<vector<uint8_t>> internal_queue;
+  ThreadSafeQueue<RawVideoData> internal_queue;
   SpxProcessor spxProcessor;
 
 protected:
@@ -27,7 +27,7 @@ protected:
       cerr << "[" << get_name() << "] Warning: No downstream port connected." << endl;
     }
 
-    vector<uint8_t> input_data;
+    RawVideoData input_data;
     while (running)
     {
       if (internal_queue.wait_and_pop(input_data))
@@ -54,7 +54,7 @@ protected:
   }
 
 public:
-  void receive(vector<uint8_t> value) override
+  void receive(RawVideoData value) override
   {
     internal_queue.push(std::move(value));
   }
