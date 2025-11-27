@@ -1,0 +1,39 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 4,
+    "minor": 1,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "Release",
+      "generator": "MinGW Makefiles",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": {
+          "value": "${sourceDir}/mingw-toolchain.cmake",
+          "type": "FILEPATH"
+        }
+      },
+      "environment": {
+        "PATH": "D:/Programs/mingw64/bin;$penv{PATH}"
+      }
+    },
+    {
+      "name": "Debug",
+      "generator": "MinGW Makefiles",
+      "binaryDir": "${sourceDir}/build",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": {
+          "value": "${sourceDir}/mingw-toolchain.cmake",
+          "type": "FILEPATH"
+        },
+        "CMAKE_BUILD_TYPE": "Debug"
+      },
+      "environment": {
+        "PATH": "D:/Programs/mingw64/bin;$penv{PATH}"
+      }
+    }
+  ]
+}
