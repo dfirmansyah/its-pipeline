@@ -50,6 +50,16 @@ public:
 // --- Unified Connection Helper ---
 
 template <typename T>
+void linkPort(ItInputPort<T>* input, ItOutputPort<T>* output)
+{
+    if (input == NULL || output == NULL) return;
+    input->setUpstreamPort(output);
+    output->setDownstreamPort(input);
+}
+
+
+
+template <typename T>
 void connect(IOutputPort<T>* upstream, IInputPort<T>* downstream) {
     if (!upstream || !downstream) {
         throw runtime_error("Cannot connect null elements.");
