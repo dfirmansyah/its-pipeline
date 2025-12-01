@@ -19,6 +19,16 @@ enum ItPortMode
   IT_MODE_PULL
 };
 
+enum ItObjState
+{
+  IT_STATE_STOPING,
+  IT_STATE_STOPED,
+  IT_STATE_PAUSING,
+  IT_STATE_PAUSED,
+  IT_STATE_STARTING,
+  IT_STATE_STARTED,
+};
+
 /**
  * @brief Interface for elements that output from source element to destination element.
  *        ItPort have direction that determine its behaviour.
@@ -36,14 +46,13 @@ protected:
   ItPortMode mode;
   std::string name;
 
-  ItPort *downstreamPort = NULL;
-  ItPort *upstreamPort = NULL;
-
   std::vector<PushListener> pushListeners;
 
-  virtual bool pushFunc(T data) = 0;
-  virtual bool getDataRangeFunc(ItBuffer<T> *buffer, int length) = 0;
-  virtual bool getDataRangeFunc(T *data) = 0;
+  // virtual bool pushFunc(T data) = 0;
+  // virtual bool getDataRangeFunc(ItBuffer<T> *buffer, int length) = 0;
+  // virtual bool getDataRangeFunc(T *data) = 0;
+  virtual bool getDataRangeFunc(ItBuffer<T> *buffer, int length) { return false; };
+  virtual bool getDataRangeFunc(T *data) { return false; };
 
   // Notify all registered push listeners
   void notifyPushListeners(const T &data)
@@ -72,15 +81,15 @@ public:
     pushListeners.push_back(callback);
   }
 
-  bool push(T data)
+  void push(T data)
   {
     if (mode != IT_MODE_PUSH)
-      return false;
-    bool pushSuccess = pushFunc(data);
-    if (pushSuccess)
+      return;
+    // bool pushSuccess = pushFunc(data);
+    // if (pushSuccess)
       notifyPushListeners(data);
 
-    return pushSuccess;
+    // return pushSuccess;
   }
 
   bool getDataRange(ItBuffer<T> *buffer, int length)
@@ -102,8 +111,8 @@ template <typename T>
 class ItInputPort : ItPort<T>
 {
 protected:
-  ItPort<T> upstreamPort = NULL;
-  virtual bool pushFunc(T data) = 0;
+  ItPort<T> *upstreamPort = NULL;
+  // virtual bool pushFunc(T data) = 0;
 
 public:
   ItInputPort(std::string name, ItPortMode portMode) : ItPort<T>(name, IT_DIR_INPUT, portMode) {}
@@ -113,13 +122,16 @@ public:
   ItPort<T> *getUpstreamPort() { return upstreamPort; }
 };
 
+
 template <typename T>
 class ItOutputPort : ItPort<T>
 {
 protected:
   ItPort<T> *downstreamPort = NULL;
-  virtual bool getDataRangeFunc(ItBuffer<T> *buffer, int length) = 0;
-  virtual bool getDataRangeFunc(T *data) = 0;
+  // virtual bool getDataRangeFunc(ItBuffer<T> *buffer, int length) = 0;
+  // virtual bool getDataRangeFunc(T *data) = 0;
+  virtual bool getDataRangeFunc(ItBuffer<T> *buffer, int length) { return false; };
+  virtual bool getDataRangeFunc(T *data) { return false; };
 
 public:
   ItOutputPort(std::string name, ItPortMode portMode) : ItPort<T>(name, IT_DIR_OUTPUT, portMode) {}
@@ -129,17 +141,39 @@ public:
   ItPort<T> *getDownstreamPort(ItPort<T> *downstream_port) { return downstreamPort; }
 };
 
-template <typename TI, typename TO>
 class ItElement
 {
 protected:
   std::string name;
-  // std::vector<ItPort<void*>> ports;
+  ItObjState state;
+public:
+  ItElement(std::string elName) : name(elName)
+  {
+    state = IT_STATE_STOPED;
+  }
+
+  ~ItElement() {}
+
+  std::string getName() const { return name; }
+  
+  ItObjState getState() { return state; }
+
+  virtual bool start() { state = IT_STATE_STARTED; return true; }
+
+  virtual bool pause() { state = IT_STATE_PAUSED; return true; }
+
+  virtual bool stop() { state = IT_STATE_STOPED; return true; }
+};
+
+
+template <typename TI, typename TO>
+class StandardIOElement : ItElement
+{
+protected:
   ItInputPort<TI> *inputPort;
   ItOutputPort<TO> *outputPort;
 
   virtual TO* processFunc(const TI data);
-  virtual void initialize();
   
   void handleDataReceived(const TI data)
   {
@@ -165,15 +199,15 @@ protected:
   }
 
 public:
-  ItElement(std::string elName) : name(elName)
+  StandardIOElement(std::string elName) : ItElement(elName)
   {
-    initialize();
   }
 
-  ~ItElement() {}
+  ~StandardIOElement() {}
 };
 
 
+//======================================================================================
 
 
 
