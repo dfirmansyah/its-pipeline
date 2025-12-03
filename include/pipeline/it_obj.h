@@ -1,0 +1,14 @@
+#ifndef IT_OBJ_H
+#define IT_OBJ_H
+
+enum ItObjState
+{
+  IT_STATE_STOPING,
+  IT_STATE_STOPED,
+  IT_STATE_PAUSING,
+  IT_STATE_PAUSED,
+  IT_STATE_STARTING,
+  IT_STATE_STARTED,
+};
+
+#endif // IT_OBJ_H

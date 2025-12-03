@@ -3,7 +3,9 @@
 
 #include <iostream>
 #include <thread>
-#include "element_ports.h"
+#include "common.h"
+#include "it_port.h"
+#include "it_element.h"
 #include "RadarTypes.h"
 
 #ifdef _WIN32
@@ -24,17 +26,31 @@
 #define CLOSE_SOCKET(s) close(s)
 #endif
 
-using namespace std;
+enum class UdpMode
+{
+  Blocking,
+  NonBlocking
+};
 
-class UdpSource : ItElement
+class UdpSource : public ItElement
 {
 private:
-  int port;
-  ItOutputPort<RawVideoData> *outputPort;
+  const int MAX_PACKET_SIZE = 2048;
 
-  unique_ptr<thread> worker_thread;
+  int port;
+  UdpMode mode;
+  unique_ptr<ItOutputPort<RawVideoData>> outputPort;
+  unique_ptr<thread> worker_thread = nullptr;
+
+  void sendOut(const std::vector<uint8_t> udp_data)
+  {
+    unique_ptr<RawVideoData> dataPtr(new RawVideoData(std::move(udp_data)));
+    outputPort->push(std::move(dataPtr));
+  }
 
 protected:
+  std::atomic<bool> _running{false};
+
   bool canStart()
   {
     return state == IT_STATE_STOPED;
@@ -45,80 +61,160 @@ protected:
     return state == IT_STATE_STARTED || state == IT_STATE_PAUSED;
   }
 
-  void processLoop()
+  void processLoopBlocking(SOCKET_TYPE sockfd,
+                           std::vector<char> &buffer,
+                           std::vector<uint8_t> &udp_data,
+                           sockaddr_in &senderAddr,
+                           socklen_t &addrLen,
+                           int maxPacketSize)
   {
-    SOCKET_TYPE sockfd;
-    struct sockaddr_in addr{};
-    const int MAX_PACKET_SIZE = 2048;
-    vector<char> buffer(MAX_PACKET_SIZE);
-
-    sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    if (sockfd == INVALID_SOCKET)
+    while (state == IT_STATE_STARTED)
     {
-      cerr << "[UDP] Failed to create socket\n";
-      return;
+      fd_set readfds;
+      FD_ZERO(&readfds);
+      FD_SET(sockfd, &readfds);
+
+      timeval tv;
+      tv.tv_sec = 0;
+      tv.tv_usec = 500000; // 500 ms
+
+      int sel = select(sockfd + 1, &readfds, nullptr, nullptr, &tv);
+      if (sel <= 0)
+      {
+        if (state != IT_STATE_STARTED)
+          break;
+        continue; // timeout or benign error, just retry
+      }
+
+      if (!FD_ISSET(sockfd, &readfds))
+        continue;
+
+      int len = recvfrom(sockfd, buffer.data(), maxPacketSize, 0,
+                         reinterpret_cast<sockaddr *>(&senderAddr), &addrLen);
+      if (len <= 0)
+      {
+        if (state != IT_STATE_STARTED)
+          break;
+        continue;
+      }
+
+      udp_data.clear();
+      udp_data.assign(buffer.begin(), buffer.begin() + len);
+      sendOut(udp_data);
     }
+  }
 
-    // Force blocking mode
-    u_long mode = 0;
-    ioctlsocket(sockfd, FIONBIO, &mode);
-
-    // Allow rebinding even if the port is still in TIME_WAIT
-    int reuse = 1;
-    setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, (const char *)&reuse, sizeof(reuse));
-
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = INADDR_ANY;
-    addr.sin_port = htons(port);
-
-    if (bind(sockfd, (struct sockaddr *)&addr, sizeof(addr)) == SOCKET_ERROR)
-    {
-      cerr << "[UDP] Bind failed on port " << port << "\n";
-      CLOSE_SOCKET(sockfd);
-      return;
-    }
-
-    cout << "[UDP] Listening on port " << port << "...\n";
-
-    sockaddr_in senderAddr{};
-    socklen_t addrLen = sizeof(senderAddr);
+  void processLoopNonBlocking(SOCKET_TYPE sockfd,
+                              std::vector<char> &buffer,
+                              std::vector<uint8_t> &udp_data,
+                              sockaddr_in &senderAddr,
+                              socklen_t &addrLen,
+                              int maxPacketSize)
+  {
+    using namespace std::chrono;
 
     while (state == IT_STATE_STARTED)
     {
-      int len = recvfrom(sockfd, buffer.data(), MAX_PACKET_SIZE, 0,
-                         (struct sockaddr *)&senderAddr, &addrLen);
+      int len = recvfrom(sockfd, buffer.data(), maxPacketSize, 0,
+                         reinterpret_cast<sockaddr *>(&senderAddr), &addrLen);
 
       if (len == SOCKET_ERROR)
       {
 #ifdef _WIN32
         int err = WSAGetLastError();
         if (err == WSAEWOULDBLOCK || err == WSAETIMEDOUT)
+        {
+          std::this_thread::sleep_for(milliseconds(1)); // small backoff
           continue;
+        }
 #else
         if (errno == EAGAIN || errno == EWOULDBLOCK)
+        {
+          std::this_thread::sleep_for(milliseconds(1));
           continue;
+        }
 #endif
-        if (!state != IT_STATE_STARTED)
+        if (state != IT_STATE_STARTED)
           break;
-        cerr << "[" << getName() << "] recvfrom() error: " << err << "\n";
         continue;
       }
 
       if (len > 0)
       {
-        vector<uint8_t> udp_data;
+        udp_data.clear();
         udp_data.assign(buffer.begin(), buffer.begin() + len);
-        RawVideoData data(udp_data);
-        outputPort->push(move(data));
+        sendOut(udp_data);
       }
+    }
+  }
+
+  void processLoop()
+  {
+    SOCKET_TYPE sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if (sockfd == INVALID_SOCKET)
+    {
+      std::cerr << "[" << getName() << "] Failed to create socket\n";
+      return;
+    }
+
+    // Allow rebinding even if the port is still in TIME_WAIT
+    int reuse = 1;
+    setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, (const char *)&reuse, sizeof(reuse));
+
+    struct sockaddr_in addr{};
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = INADDR_ANY;
+    addr.sin_port = htons(port);
+
+    if (bind(sockfd, (struct sockaddr *)&addr, sizeof(addr)) == SOCKET_ERROR)
+    {
+      std::cerr << "[" << getName() << "] Bind failed on port " << port << "\n";
+      CLOSE_SOCKET(sockfd);
+      return;
+    }
+
+    cout << "[" << getName() << "] Listening on port " << port << "...\n";
+
+#ifndef _WIN32
+    if (mode == UdpMode::NonBlocking)
+    {
+      int flags = fcntl(sockfd, F_GETFL, 0);
+      if (flags != -1)
+      {
+        fcntl(sockfd, F_SETFL, flags | O_NONBLOCK);
+      }
+    }
+#else
+    if (mode == UdpMode::NonBlocking)
+    {
+      u_long nb = 1;
+      ioctlsocket(sockfd, FIONBIO, &nb);
+    }
+#endif
+
+    sockaddr_in senderAddr{};
+    socklen_t addrLen = sizeof(senderAddr);
+
+    std::vector<char> buffer(MAX_PACKET_SIZE);
+    std::vector<uint8_t> udp_data;
+
+    if (mode == UdpMode::Blocking)
+    {
+      processLoopBlocking(sockfd, buffer, udp_data, senderAddr, addrLen, MAX_PACKET_SIZE);
+    }
+    else
+    {
+      processLoopNonBlocking(sockfd, buffer, udp_data, senderAddr, addrLen, MAX_PACKET_SIZE);
     }
 
     CLOSE_SOCKET(sockfd);
   }
 
 public:
-  UdpSource(std::string elName, int portArg) : ItElement(elName), port(portArg)
+  UdpSource(std::string elName, int portArg, UdpMode m = UdpMode::Blocking)
+      : ItElement(elName), port(portArg), mode(m)
   {
+    outputPort = make_unique<ItOutputPort<RawVideoData>>("udp_source_out");
 #ifdef _WIN32
     WSADATA wsaData;
     if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
@@ -137,20 +233,20 @@ public:
     stop();
   }
 
-  bool start()
+  bool start() override
   {
     if (!canStart())
       return false;
 
     state = IT_STATE_STARTING;
-
     worker_thread.reset(new thread(&processLoop, this));
+    _running = true;
     cout << "[" << getName() << "] Starting thread ID: " << worker_thread->get_id() << endl;
 
     return ItElement::start();
   }
 
-  bool stop()
+  bool stop() override
   {
     if (!canStop())
       return false;
@@ -161,8 +257,11 @@ public:
       worker_thread->join();
       cout << "[" << getName() << "] Thread stopped." << endl;
     }
+    _running = false;
     return ItElement::stop();
   }
+
+  ItOutputPort<RawVideoData> *getOutputPort() const { return outputPort.get(); }
 };
 
 #endif // UDP_SOURCE_H

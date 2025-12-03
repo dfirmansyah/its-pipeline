@@ -3,31 +3,35 @@
 
 #include <iostream>
 #include <thread>
-#include "element_ports.h"
+#include "it_port.h"
+#include "it_element.h"
 #include "RadarTypes.h"
 #include "packet_processor/spx_packet_processor.h"
 
 
 using namespace std;
 
-class SpxDecoderElement : StandardIOElement<RawVideoData, RadarVideoSweep>
+class SpxDecoderElement : 
+  public StandardIOElement<RawVideoData, RadarVideoSweep>
 {
 private:
   SpxProcessor spxProcessor;
 protected:
-  RadarVideoSweep* processFunc(RawVideoData data)
+  unique_ptr<RadarVideoSweep> processFunc(const unique_ptr<RawVideoData> &data) override
   {
-    return NULL;
+    RawVideoData *rawData = data.get();
+    auto packet = spxProcessor.processPacket(*rawData);
+    return move(packet);
   }
 
 public:
   SpxDecoderElement(string name) : StandardIOElement(name)
   {
     unique_ptr<ItInputPort<RawVideoData>> _inPort(new ItInputPort<RawVideoData>("SpxDecoder_in"));
-    setInputPort(_inPort.get());
+    setInputPort(move(_inPort));
 
     unique_ptr<ItOutputPort<RadarVideoSweep>> _outPort(new ItOutputPort<RadarVideoSweep>("SpxDecoder_out"));
-    setOutputPort(_outPort.get());
+    setOutputPort(move(_outPort));
   }
 
   ~SpxDecoderElement() {}
