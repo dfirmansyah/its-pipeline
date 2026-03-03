@@ -18,13 +18,10 @@ class ItObject
 private:
   std::string name;
   std::atomic<ItObjState> state;
+
 protected:
   virtual void handleStateChanged() = 0;
 
-  virtual void setState(ItObjState newState) {
-    state = newState;
-    handleStateChanged();
-  }
 public:
   ItObject(std::string objName) : name(objName)
   {
@@ -36,6 +33,11 @@ public:
   std::string getName() const { return name; }
   
   ItObjState getState() { return state; }
+
+  void setState(ItObjState newState) {
+    state = newState;
+    handleStateChanged();
+  }
 };
 
 #endif // IT_OBJ_H

@@ -89,7 +89,10 @@ public:
       
       // return pushSuccess;
     
-    pushFunc(move(data));
+    if (getState() == IT_STATE_STARTED)
+    {
+      pushFunc(move(data));
+    }
   }
 
   bool getDataRange(ItBuffer<T> *buffer, int length)

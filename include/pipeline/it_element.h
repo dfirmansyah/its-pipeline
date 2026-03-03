@@ -35,6 +35,16 @@ protected:
 
   virtual void handleStateChanged() override
   {
+    ItObjState _portNewState = getState() == IT_STATE_STARTED ? IT_STATE_STARTED : IT_STATE_STOPED;
+
+    if (inputPort != nullptr)
+    {
+      inputPort->setState(_portNewState);
+    }
+    if (outputPort != nullptr)
+    {
+      outputPort->setState(_portNewState);
+    }
   }
   
   void handleDataReceived(std::unique_ptr<TI> data)

@@ -1,3 +1,4 @@
+#include <chrono>
 #include "common.h"
 #include "thread_safe_queue.h"
 #include "pipeline/pipeline_element.h"
@@ -12,16 +13,30 @@
 
 using namespace std;
 
-const long long EVT_POOL_MS = 200;
+
+
+const std::chrono::milliseconds SLOT_DURATION_MS = std::chrono::milliseconds(200);
 
 class EchoElement : public ItElement
 {
 protected:
   std::unique_ptr<ItInputPort<RadarVideoSweep>> inputPort = nullptr;
 
+  virtual void handleStateChanged() override
+  {
+    ItObjState _portNewState = getState() == IT_STATE_STARTED ? IT_STATE_STARTED : IT_STATE_STOPED;
+
+    if (inputPort != nullptr)
+    {
+      inputPort->setState(_portNewState);
+    }
+  }
+  
   void handleDataReceived(std::unique_ptr<RadarVideoSweep> data)
   {
-    cout << "[" << data->sequence << "] az: " << data->azimuth << endl;
+    auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(
+      std::chrono::steady_clock::now().time_since_epoch()).count();
+    cout << "[" << millis << "] " << "[" << data->sequence << "] az: " << data->azimuth << endl;
   }
 
 public:
@@ -84,10 +99,33 @@ static void Test4()
     el_spxDecoder.start();
     el_udpSource.start();
     
-    while(true){
-      std::this_thread::sleep_for(std::chrono::milliseconds(EVT_POOL_MS));
-    }
+    std::chrono::milliseconds TTP = std::chrono::milliseconds(1000);
     
+    auto last_trigr = std::chrono::steady_clock::now();
+    auto next_slot_time = std::chrono::steady_clock::now();
+    
+    bool spdx_state = true;
+    while(true){
+      next_slot_time += SLOT_DURATION_MS;
+      std::this_thread::sleep_until(next_slot_time);
+      
+      // Test for pipeline element state change effect
+      auto _now = std::chrono::steady_clock::now();
+      auto _eti_mod = (_now - last_trigr) / TTP;
+
+      if (_eti_mod > 3)
+      {
+        if (spdx_state) {
+          el_spxDecoder.stop();
+        }
+        else {
+          el_spxDecoder.start();
+        }
+        spdx_state = !spdx_state;
+        last_trigr = _now;
+      }
+      // End test for pipeline element state change effect
+    }
   }
   catch (const exception &e)
   {

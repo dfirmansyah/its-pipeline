@@ -51,6 +51,16 @@ private:
 protected:
   std::atomic<bool> _running{false};
 
+  virtual void handleStateChanged() override
+  {
+    ItObjState _portNewState = getState() == IT_STATE_STARTED ? IT_STATE_STARTED : IT_STATE_STOPED;
+
+    if (outputPort != nullptr)
+    {
+      outputPort->setState(_portNewState);
+    }
+  }
+
   bool canStart()
   {
     return getState() == IT_STATE_STOPED;
