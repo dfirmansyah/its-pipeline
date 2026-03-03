@@ -27,7 +27,7 @@ enum ItPortMode
  *        Output port (IT_DIR_OUTPUT) produce data, and input port (IT_PORT_INPUT) push/consume data.
  */
 template <typename T>
-class ItPort
+class ItPort : public ItObject
 {
 public:
   // Listener callback
@@ -41,6 +41,8 @@ protected:
 
   // std::vector<PushListener> pushListeners;
   PushFunc pushFunc;
+  
+  virtual void handleStateChanged() override {}
 
   // virtual bool pushFunc(T data) = 0;
   // virtual bool getDataRangeFunc(ItBuffer<T> *buffer, int length) = 0;
@@ -62,10 +64,10 @@ protected:
 
 public:
   ItPort(std::string portName, ItPortDirection portDirection, ItPortMode portMode)
-      : name(portName), direction(portDirection), mode(portMode) {}
+      : ItObject(portName), direction(portDirection), mode(portMode) {}
   ItPort(std::string portName, ItPortDirection portDirection)
-      : name(portName), direction(portDirection), mode(IT_MODE_PUSH) {}
-  virtual ~ItPort() = default;;
+      : ItObject(portName), direction(portDirection), mode(IT_MODE_PUSH) {}
+  ~ItPort() = default;;
 
   std::string getName() const { return name; }
   ItPortDirection getDirection() const { return direction; }

@@ -12,6 +12,8 @@
 
 using namespace std;
 
+const long long EVT_POOL_MS = 200;
+
 class EchoElement : public ItElement
 {
 protected:
@@ -47,8 +49,8 @@ static void Test3()
 
   try
   {
-    connect(udpListener.get(), spxProcessorElement.get());
-    connect(spxProcessorElement.get(), loggerEl.get());
+    ipl_connect(udpListener.get(), spxProcessorElement.get());
+    ipl_connect(spxProcessorElement.get(), loggerEl.get());
     udpListener->start();
     spxProcessorElement->start();
     loggerEl->start();
@@ -75,14 +77,16 @@ static void Test4()
     SpxDecoderElement el_spxDecoder("SPX Decoder");
     EchoElement el_echo("Echoing");
 
-    linkPort(el_spxDecoder.getInputPort(), el_udpSource.getOutputPort());
-    linkPort(el_echo.getInputPort(), el_spxDecoder.getOutputPort());
+    ipl_linkPort(el_udpSource.getOutputPort(), el_spxDecoder.getInputPort());
+    ipl_linkPort(el_spxDecoder.getOutputPort(), el_echo.getInputPort());
 
     el_echo.start();
     el_spxDecoder.start();
     el_udpSource.start();
     
-    while(true){}
+    while(true){
+      std::this_thread::sleep_for(std::chrono::milliseconds(EVT_POOL_MS));
+    }
     
   }
   catch (const exception &e)

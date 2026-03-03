@@ -53,12 +53,13 @@ protected:
 
   bool canStart()
   {
-    return state == IT_STATE_STOPED;
+    return getState() == IT_STATE_STOPED;
   }
 
   bool canStop()
   {
-    return state == IT_STATE_STARTED || state == IT_STATE_PAUSED;
+    ItObjState _state = getState();
+    return _state == IT_STATE_STARTED || _state == IT_STATE_PAUSED;
   }
 
   void processLoopBlocking(SOCKET_TYPE sockfd,
@@ -68,7 +69,7 @@ protected:
                            socklen_t &addrLen,
                            int maxPacketSize)
   {
-    while (state == IT_STATE_STARTED)
+    while (getState() == IT_STATE_STARTED)
     {
       fd_set readfds;
       FD_ZERO(&readfds);
@@ -81,7 +82,7 @@ protected:
       int sel = select(sockfd + 1, &readfds, nullptr, nullptr, &tv);
       if (sel <= 0)
       {
-        if (state != IT_STATE_STARTED)
+        if (getState() != IT_STATE_STARTED)
           break;
         continue; // timeout or benign error, just retry
       }
@@ -93,7 +94,7 @@ protected:
                          reinterpret_cast<sockaddr *>(&senderAddr), &addrLen);
       if (len <= 0)
       {
-        if (state != IT_STATE_STARTED)
+        if (getState() != IT_STATE_STARTED)
           break;
         continue;
       }
@@ -113,7 +114,7 @@ protected:
   {
     using namespace std::chrono;
 
-    while (state == IT_STATE_STARTED)
+    while (getState() == IT_STATE_STARTED)
     {
       int len = recvfrom(sockfd, buffer.data(), maxPacketSize, 0,
                          reinterpret_cast<sockaddr *>(&senderAddr), &addrLen);
@@ -134,7 +135,7 @@ protected:
           continue;
         }
 #endif
-        if (state != IT_STATE_STARTED)
+        if (getState() != IT_STATE_STARTED)
           break;
         continue;
       }
@@ -185,11 +186,8 @@ protected:
       }
     }
 #else
-    if (mode == UdpMode::NonBlocking)
-    {
-      u_long nb = 1;
-      ioctlsocket(sockfd, FIONBIO, &nb);
-    }
+    u_long nb = (mode == UdpMode::NonBlocking) ? 1 : 0;
+    ioctlsocket(sockfd, FIONBIO, &nb);
 #endif
 
     sockaddr_in senderAddr{};
@@ -238,7 +236,7 @@ public:
     if (!canStart())
       return false;
 
-    state = IT_STATE_STARTING;
+    setState(IT_STATE_STARTING);
     worker_thread.reset(new thread(&processLoop, this));
     _running = true;
     cout << "[" << getName() << "] Starting thread ID: " << worker_thread->get_id() << endl;
@@ -251,7 +249,7 @@ public:
     if (!canStop())
       return false;
 
-    state = IT_STATE_STOPING;
+    setState(IT_STATE_STOPING);
     if (worker_thread && worker_thread->joinable())
     {
       worker_thread->join();

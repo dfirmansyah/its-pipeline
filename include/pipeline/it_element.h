@@ -6,28 +6,21 @@
 #include "it_port.h"
 
 
-class ItElement
+class ItElement : public ItObject
 {
 protected:
-  std::string name;
-  std::atomic<ItObjState> state;
+  virtual void handleStateChanged() override {}
+
 public:
-  ItElement(std::string elName) : name(elName)
-  {
-    state = IT_STATE_STOPED;
-  }
+  ItElement(std::string elName) : ItObject(elName) {}
 
   ~ItElement() = default;
 
-  std::string getName() const { return name; }
-  
-  ItObjState getState() { return state; }
+  virtual bool start() { setState(IT_STATE_STARTED); return true; }
 
-  virtual bool start() { state = IT_STATE_STARTED; return true; }
+  virtual bool pause() { setState(IT_STATE_PAUSED); return true; }
 
-  virtual bool pause() { state = IT_STATE_PAUSED; return true; }
-
-  virtual bool stop() { state = IT_STATE_STOPED; return true; }
+  virtual bool stop() { setState(IT_STATE_STOPED); return true; }
 };
 
 
@@ -39,6 +32,10 @@ protected:
   std::unique_ptr<ItOutputPort<TO>> outputPort = nullptr;
 
   virtual std::unique_ptr<TO> processFunc(const std::unique_ptr<TI> &data) = 0;
+
+  virtual void handleStateChanged() override
+  {
+  }
   
   void handleDataReceived(std::unique_ptr<TI> data)
   {
