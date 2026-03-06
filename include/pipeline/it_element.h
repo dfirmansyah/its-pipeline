@@ -2,6 +2,7 @@
 #define IT_ELEMENT_H
 
 #include <atomic>
+#include "string_util.h"
 #include "it_obj.h"
 #include "it_port.h"
 
@@ -87,6 +88,60 @@ public:
   ItOutputPort<TO>* getOutputPort() const {
     return outputPort ? outputPort.get() : nullptr;
   }
+};
+
+
+template <typename T>
+class ForkElement : public ItElement
+{
+private:
+  void initializeOutputPorts()
+  {
+    if (!outputPorts.empty()) { outputPorts.clear(); }
+    
+    std::string outPortPrefix = create_slug(getName()).append("_op_");
+    for (int i=1; i <= outPortNum; i++)
+    {
+      unique_ptr<ItOutputPort<RadarVideoSweep>> _outPort(
+        new ItOutputPort<RadarVideoSweep>(outPortPrefix + std::to_string(i)));
+      outputPorts.push_back(_outPort);
+    }
+  }
+protected:
+  int outPortNum = 1;
+  std::vector<std::unique_ptr<ItOutputPort<T>>> outputPorts;
+
+  std::unique_ptr<ItInputPort<T>> inputPort = nullptr;
+
+  virtual void handleStateChanged() override
+  {
+    ItObjState _portNewState = getState() == IT_STATE_STARTED ? IT_STATE_STARTED : IT_STATE_STOPED;
+
+    if (inputPort != nullptr)
+    {
+      inputPort->setState(_portNewState);
+    }
+    if (outputPorts != nullptr && !outputPorts.empty())
+    {
+      for (const auto& oPort : outputPorts) {
+        oPort->setState(_portNewState);
+      }
+    }
+  }
+public:
+  ForkElement(std::string elName, int outportNum) : ItElement(elName), outPortNum(outPortNum)
+  {
+    inputPort = nullptr;
+    initializeOutputPorts();
+  }
+
+  ~ForkElement() {}
+
+  ItInputPort<T>* getInputPort() const {
+    return inputPort ? inputPort.get() : nullptr;
+  }
+
+
 };
 
 #endif // IT_ELEMENT_H
