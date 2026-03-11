@@ -133,10 +133,46 @@ static void Test4()
   }
 }
 
+static void Test5()
+{
+  try
+  {
+    UdpSource el_udpSource("UDP Source", 4378, UdpMode::NonBlocking);
+    SpxDecoderElement el_spxDecoder("SPX Decoder");
+    EchoElement el_echo_1("Echo 1");
+    EchoElement el_echo_2("Echo 2");
+
+    ForkElement<RadarVideoSweep> el_fork("Fork RawVideo", 2);
+
+    ipl_linkPort(el_udpSource.getOutputPort(), el_spxDecoder.getInputPort());
+    ipl_linkPort(el_spxDecoder.getOutputPort(), el_echo_1.getInputPort());
+
+    el_echo_1.start();
+    el_spxDecoder.start();
+    el_udpSource.start();
+
+    std::chrono::milliseconds TTP = std::chrono::milliseconds(1000);
+    
+    auto last_trigr = std::chrono::steady_clock::now();
+    auto next_slot_time = std::chrono::steady_clock::now();
+    
+    bool spdx_state = true;
+    while(true){
+      next_slot_time += SLOT_DURATION_MS;
+      std::this_thread::sleep_until(next_slot_time);
+    }
+  }
+  catch (const exception &e)
+  {
+    cerr << "Pipeline Chain Error: " << e.what() << endl;
+  }
+}
+
 int main()
 {
   // Test3();
-  Test4();
+  // Test4();
+  Test5();
 
   return 0;
 }

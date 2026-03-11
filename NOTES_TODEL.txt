@@ -1,0 +1,46 @@
+# Render Graph
+- GUI window
+- Azimuth needle
+- Radar video
+- CFAR video
+- Target/plot
+
+# Take out from main loop
+- Process radar video data
+  - cfar process related
+  - copy processed radar video data list
+  - copy cfar target list 
+
+=========================================================================================
+The best way to "carbon copy" (deep copy) data in C++11 depends on the data type.
+For standard containers (std::vector, std::string), the assignment operator (=) or 
+copy constructor is best as it manages memory automatically. For raw memory/arrays, 
+std::memcpy is fastest, while std::copy is preferred for type safety. 
+
+## Best Methods for Data Copying in C++11
+- For Custom Objects/Structs (Deep Copy):
+  - Assignment Operator/Copy Constructor: Utilize the default compiler-generated operators if 
+  your struct only contains primitive types or other standard containers.
+  - User-Defined Copy: If your class manages raw memory (pointers), you must write a custom copy 
+  constructor to perform a deep copy, ensuring the new object owns its own memory.
+
+- For Standard Containers (Vectors, Maps, Sets):
+Simply use Destination = Source;. These containers automatically perform deep copies of their elements.
+
+- For Raw Arrays/Buffers (Maximum Performance):
+  - std::memcpy: Use for large, contiguous chunks of data (like char arrays) where speed is critical, 
+  though it does not handle object construction.
+  - std::copy: The preferred, type-safe alternative to memcpy in modern C++ that works well with iterators.
+
+- For Smart Pointers:
+Use std::make_shared<T>(*source) or std::make_unique<T>(*source) to clone the object pointed to, 
+rather than just copying the pointer address. 
+
+## Key Considerations
+- Avoid Shallow Copies: If you have pointers, copying the pointer (shallow copy) causes both objects 
+to point to the same memory, leading to double-free errors.
+- Performance: Copying can be expensive. If you do not need to modify the copy, consider using const 
+& (references) to avoid the copy entirely.
+- Move Semantics (C++11): If the source object is temporary, use std::move to transfer ownership 
+instead of copying to maximize performance.
+=========================================================================================

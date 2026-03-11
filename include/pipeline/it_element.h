@@ -92,26 +92,12 @@ public:
 
 
 template <typename T>
-class ForkElement : public ItElement
+class StandardInputElement : public ItElement
 {
-private:
-  void initializeOutputPorts()
-  {
-    if (!outputPorts.empty()) { outputPorts.clear(); }
-    
-    std::string outPortPrefix = create_slug(getName()).append("_op_");
-    for (int i=1; i <= outPortNum; i++)
-    {
-      unique_ptr<ItOutputPort<RadarVideoSweep>> _outPort(
-        new ItOutputPort<RadarVideoSweep>(outPortPrefix + std::to_string(i)));
-      outputPorts.push_back(_outPort);
-    }
-  }
 protected:
-  int outPortNum = 1;
-  std::vector<std::unique_ptr<ItOutputPort<T>>> outputPorts;
-
   std::unique_ptr<ItInputPort<T>> inputPort = nullptr;
+
+  virtual void processFunc(const std::unique_ptr<T> &data) = 0;
 
   virtual void handleStateChanged() override
   {
@@ -121,26 +107,93 @@ protected:
     {
       inputPort->setState(_portNewState);
     }
-    if (outputPorts != nullptr && !outputPorts.empty())
-    {
-      for (const auto& oPort : outputPorts) {
-        oPort->setState(_portNewState);
-      }
-    }
   }
-public:
-  ForkElement(std::string elName, int outportNum) : ItElement(elName), outPortNum(outPortNum)
+  
+  void handleDataReceived(std::unique_ptr<T> data)
   {
-    inputPort = nullptr;
-    initializeOutputPorts();
+    processFunc(data);
   }
 
-  ~ForkElement() {}
+  void setInputPort(std::unique_ptr<ItInputPort<T>> port)
+  {
+    this->inputPort = move(port);
+    if (inputPort != nullptr)
+    {
+      // inputPort->addListener([this](std::shared_ptr<TI> d){ handleDataReceived(d); });
+      inputPort->setDataReceiveHandler([this](std::unique_ptr<T> d){ handleDataReceived(move(d)); });
+    }
+  }
+
+public:
+  StandardInputElement(std::string elName) : ItElement(elName)
+  {
+    inputPort = nullptr;
+  }
+
+  ~StandardInputElement() {}
 
   ItInputPort<T>* getInputPort() const {
     return inputPort ? inputPort.get() : nullptr;
   }
+};
 
+
+template <typename T>
+class ForkElement : public StandardInputElement<T>
+{
+protected:
+  int outPortNum;
+  std::vector<std::unique_ptr<ItOutputPort<T>>> outputPorts;
+
+  void initializeOutputPorts()
+  {
+    if (!outputPorts.empty()) { outputPorts.clear(); }
+    
+    std::string outPortPrefix = create_slug(ItElement::getName()).append("_op_");
+    for (int i=1; i <= outPortNum; i++)
+    {
+      std::unique_ptr<ItOutputPort<T>> _outPort(new ItOutputPort<T>(outPortPrefix + std::to_string(i)));
+      outputPorts.push_back(move(_outPort));
+    }
+  }
+
+  void handleStateChanged() override
+  {
+    ItObjState _portNewState = ItElement::getState() == IT_STATE_STARTED ? IT_STATE_STARTED : IT_STATE_STOPED;
+    StandardInputElement<T>::handleStateChanged();
+
+    if (!outputPorts.empty())
+    {
+      for (const auto& oPort : outputPorts)
+      {
+        oPort->setState(_portNewState);
+      }
+    }
+  }
+
+  void processFunc(const unique_ptr<T> &data) override
+  {
+    // Transfer ownership from unique_ptr to shared_ptr
+    std::shared_ptr<T> sharedData = std::move(data);
+
+    for (const auto& outPort : outputPorts)
+    {
+      outPort->push(sharedData);
+
+    }
+  }
+
+public:
+  ForkElement(std::string elName, int pOutportNum) : StandardInputElement<T>(elName), outPortNum(pOutportNum)
+  {
+    std::string inPortPrefix = create_slug(elName).append("_ip");
+    unique_ptr<ItInputPort<T>> _inPort(new ItInputPort<T>(inPortPrefix));
+    this->setInputPort(move(_inPort));
+
+    initializeOutputPorts();
+  }
+
+  ~ForkElement() {}
 
 };
 
