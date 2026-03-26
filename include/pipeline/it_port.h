@@ -4,6 +4,7 @@
 #include <string>
 #include <functional>
 #include "it_obj.h"
+#include "it_util.h"
 #include "RadarTypes.h"
 #include "thread_safe_queue.h"
 
@@ -30,8 +31,6 @@ template <typename T>
 class ItPort : public ItObject
 {
 public:
-  // Listener callback
-  // using PushListener = std::function<void(std::shared_ptr<T>)>;
   using PushFunc = std::function<void(std::unique_ptr<T>)>;
 
 protected:
@@ -39,7 +38,6 @@ protected:
   ItPortMode mode;
   std::string name;
 
-  // std::vector<PushListener> pushListeners;
   PushFunc pushFunc;
   
   virtual void handleStateChanged() override {}
@@ -49,18 +47,6 @@ protected:
   // virtual bool getDataRangeFunc(T *data) = 0;
   virtual bool getDataRangeFunc(ItBuffer<T> *buffer, int length) { return false; };
   virtual bool getDataRangeFunc(T *data) { return false; };
-
-  // Notify all registered push listeners
-  // void notifyPushListeners(std::unique_ptr<T> data)
-  // {
-  //   for (const auto &listener : pushListeners)
-  //   {
-  //     if (listener) {
-  //       std::shared_ptr<T> data_ptr(move(data));
-  //       listener(data_ptr);
-  //     }
-  //   }
-  // }
 
 public:
   ItPort(std::string portName, ItPortDirection portDirection, ItPortMode portMode)
@@ -73,21 +59,11 @@ public:
   ItPortDirection getDirection() const { return direction; }
   ItPortMode getMode() const { return mode; }
 
-  // Register push listener
-  // void addListener(PushListener callback)
-  // {
-  //   pushListeners.push_back(callback);
-  // }
-
   void push(std::unique_ptr<T> data)
   {
   //   if (mode != IT_MODE_PUSH)
   //     return;
     // bool pushSuccess = pushFunc(data);
-    // if (pushSuccess)
-      // notifyPushListeners(move(data));
-      
-      // return pushSuccess;
     
     if (getState() == IT_STATE_STARTED)
     {

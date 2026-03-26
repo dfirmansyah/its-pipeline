@@ -150,7 +150,7 @@ protected:
     if (!outputPorts.empty()) { outputPorts.clear(); }
     
     std::string outPortPrefix = create_slug(ItElement::getName()).append("_op_");
-    for (int i=1; i <= outPortNum; i++)
+    for (int i=0; i < outPortNum; i++)
     {
       std::unique_ptr<ItOutputPort<T>> _outPort(new ItOutputPort<T>(outPortPrefix + std::to_string(i)));
       outputPorts.push_back(move(_outPort));
@@ -173,12 +173,10 @@ protected:
 
   void processFunc(const unique_ptr<T> &data) override
   {
-    // Transfer ownership from unique_ptr to shared_ptr
-    std::shared_ptr<T> sharedData = std::move(data);
-
     for (const auto& outPort : outputPorts)
     {
-      outPort->push(sharedData);
+      unique_ptr<T> cloned_data = clone(data);
+      outPort->push(move(cloned_data));
 
     }
   }
@@ -191,6 +189,13 @@ public:
     this->setInputPort(move(_inPort));
 
     initializeOutputPorts();
+  }
+
+  ItOutputPort<T>* getOutputPort(int port_index)
+  {
+    if (port_index >= outputPorts.size()) return nullptr;
+
+    return outputPorts.at(port_index).get();
   }
 
   ~ForkElement() {}

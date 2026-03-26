@@ -34,9 +34,10 @@ protected:
   
   void handleDataReceived(std::unique_ptr<RadarVideoSweep> data)
   {
-    auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(
-      std::chrono::steady_clock::now().time_since_epoch()).count();
-    cout << "[" << millis << "] " << "[" << data->sequence << "] az: " << data->azimuth << endl;
+    // auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(
+    //   std::chrono::steady_clock::now().time_since_epoch()).count();
+    // cout << "[" << millis << "] " << "[" << data->sequence << "] az: " << data->azimuth << endl;
+    cout << "[" << getName() << "] " << "[" << data->sequence << "] az: " << data->azimuth << endl;
   }
 
 public:
@@ -145,7 +146,12 @@ static void Test5()
     ForkElement<RadarVideoSweep> el_fork("Fork RawVideo", 2);
 
     ipl_linkPort(el_udpSource.getOutputPort(), el_spxDecoder.getInputPort());
-    ipl_linkPort(el_spxDecoder.getOutputPort(), el_echo_1.getInputPort());
+    ipl_linkPort(el_spxDecoder.getOutputPort(), el_fork.getInputPort());
+
+    auto* el_fork_out_0 = el_fork.getOutputPort(0);
+    auto* el_fork_out_1 = el_fork.getOutputPort(1);
+
+    ipl_linkPort(el_fork_out_0, el_echo_1.getInputPort());
 
     el_echo_1.start();
     el_spxDecoder.start();
