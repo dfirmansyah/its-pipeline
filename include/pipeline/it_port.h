@@ -36,7 +36,6 @@ public:
 protected:
   ItPortDirection direction;
   ItPortMode mode;
-  std::string name;
 
   PushFunc pushFunc;
   
@@ -55,7 +54,6 @@ public:
       : ItObject(portName), direction(portDirection), mode(IT_MODE_PUSH) {}
   ~ItPort() = default;;
 
-  std::string getName() const { return name; }
   ItPortDirection getDirection() const { return direction; }
   ItPortMode getMode() const { return mode; }
 
@@ -100,8 +98,12 @@ protected:
   void initializePort()
   {
     // if (this->mode == IT_MODE_PUSH) this->pushFunc = [this](std::unique_ptr<T> d) { dataReceiveHandler(move(d)); };
-    if (this->mode == IT_MODE_PUSH) this->pushFunc = [this](std::unique_ptr<T> d) { dataReceiveHandler(move(d)); };
-    else this->pushFunc = [this](std::unique_ptr<T> d) { };
+    if (this->mode == IT_MODE_PUSH) {
+      this->pushFunc = [this](std::unique_ptr<T> d) { dataReceiveHandler(move(d));};
+    }
+    else this->pushFunc = [this](std::unique_ptr<T> d) {
+      // TODO: unimplemented
+    };
   }
 
 public:

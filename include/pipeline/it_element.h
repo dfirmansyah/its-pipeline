@@ -149,7 +149,7 @@ protected:
   {
     if (!outputPorts.empty()) { outputPorts.clear(); }
     
-    std::string outPortPrefix = create_slug(ItElement::getName()).append("_op_");
+    std::string outPortPrefix = create_slug(ItElement::getName()).append("_out_");
     for (int i=0; i < outPortNum; i++)
     {
       std::unique_ptr<ItOutputPort<T>> _outPort(new ItOutputPort<T>(outPortPrefix + std::to_string(i)));
@@ -184,7 +184,7 @@ protected:
 public:
   ForkElement(std::string elName, int pOutportNum) : StandardInputElement<T>(elName), outPortNum(pOutportNum)
   {
-    std::string inPortPrefix = create_slug(elName).append("_ip");
+    std::string inPortPrefix = create_slug(elName).append("_in");
     unique_ptr<ItInputPort<T>> _inPort(new ItInputPort<T>(inPortPrefix));
     this->setInputPort(move(_inPort));
 

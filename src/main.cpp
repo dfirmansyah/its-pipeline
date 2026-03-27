@@ -152,17 +152,17 @@ static void Test5()
     auto* el_fork_out_1 = el_fork.getOutputPort(1);
 
     ipl_linkPort(el_fork_out_0, el_echo_1.getInputPort());
+    ipl_linkPort(el_fork_out_1, el_echo_2.getInputPort());
 
     el_echo_1.start();
+    el_echo_2.start();
+    el_fork.start();
     el_spxDecoder.start();
     el_udpSource.start();
 
-    std::chrono::milliseconds TTP = std::chrono::milliseconds(1000);
-    
     auto last_trigr = std::chrono::steady_clock::now();
     auto next_slot_time = std::chrono::steady_clock::now();
-    
-    bool spdx_state = true;
+
     while(true){
       next_slot_time += SLOT_DURATION_MS;
       std::this_thread::sleep_until(next_slot_time);
