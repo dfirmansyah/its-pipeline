@@ -36,15 +36,13 @@ protected:
 
   virtual void handleStateChanged() override
   {
-    ItObjState _portNewState = getState() == IT_STATE_STARTED ? IT_STATE_STARTED : IT_STATE_STOPED;
-
     if (inputPort != nullptr)
     {
-      inputPort->setState(_portNewState);
+      inputPort->setState(getState());
     }
     if (outputPort != nullptr)
     {
-      outputPort->setState(_portNewState);
+      outputPort->setState(getState());
     }
   }
   
@@ -101,11 +99,9 @@ protected:
 
   virtual void handleStateChanged() override
   {
-    ItObjState _portNewState = getState() == IT_STATE_STARTED ? IT_STATE_STARTED : IT_STATE_STOPED;
-
     if (inputPort != nullptr)
     {
-      inputPort->setState(_portNewState);
+      inputPort->setState(getState());
     }
   }
   
@@ -159,14 +155,13 @@ protected:
 
   void handleStateChanged() override
   {
-    ItObjState _portNewState = ItElement::getState() == IT_STATE_STARTED ? IT_STATE_STARTED : IT_STATE_STOPED;
     StandardInputElement<T>::handleStateChanged();
 
     if (!outputPorts.empty())
     {
       for (const auto& oPort : outputPorts)
       {
-        oPort->setState(_portNewState);
+        oPort->setState(this->getState());
       }
     }
   }
