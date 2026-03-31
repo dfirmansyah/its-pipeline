@@ -17,7 +17,7 @@ class SpxDecoderElement :
 private:
   SpxProcessor spxProcessor;
 protected:
-  unique_ptr<RadarVideoSweep> processFunc(const unique_ptr<RawVideoData> &data) override
+  unique_ptr<RadarVideoSweep> transformFunc(const unique_ptr<RawVideoData> &data) override
   {
     RawVideoData *rawData = data.get();
     auto packet = spxProcessor.processPacket(*rawData);

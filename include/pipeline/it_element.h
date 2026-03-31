@@ -25,70 +25,6 @@ public:
 };
 
 
-template <typename TI, typename TO>
-class StandardIOElement : public ItElement
-{
-protected:
-  std::unique_ptr<ItInputPort<TI>> inputPort = nullptr;
-  std::unique_ptr<ItOutputPort<TO>> outputPort = nullptr;
-
-  virtual std::unique_ptr<TO> processFunc(const std::unique_ptr<TI> &data) = 0;
-
-  virtual void handleStateChanged() override
-  {
-    if (inputPort != nullptr)
-    {
-      inputPort->setState(getState());
-    }
-    if (outputPort != nullptr)
-    {
-      outputPort->setState(getState());
-    }
-  }
-  
-  void handleDataReceived(std::unique_ptr<TI> data)
-  {
-    auto result = processFunc(data);
-    if (result && outputPort != nullptr)
-    {
-      outputPort->push(move(result));
-    }
-  }
-
-  void setInputPort(std::unique_ptr<ItInputPort<TI>> port)
-  {
-    this->inputPort = move(port);
-    if (inputPort != nullptr)
-    {
-      // inputPort->addListener([this](std::shared_ptr<TI> d){ handleDataReceived(d); });
-      inputPort->setDataReceiveHandler([this](std::unique_ptr<TI> d){ handleDataReceived(move(d)); });
-    }
-  }
-
-  void setOutputPort(std::unique_ptr<ItOutputPort<TO>> port)
-  {
-    this->outputPort = move(port);
-  }
-
-public:
-  StandardIOElement(std::string elName) : ItElement(elName)
-  {
-    inputPort = nullptr;
-    outputPort = nullptr;
-  }
-
-  ~StandardIOElement() {}
-
-  ItInputPort<TI>* getInputPort() const {
-    return inputPort ? inputPort.get() : nullptr;
-  }
-
-  ItOutputPort<TO>* getOutputPort() const {
-    return outputPort ? outputPort.get() : nullptr;
-  }
-};
-
-
 template <typename T>
 class StandardInputElement : public ItElement
 {
@@ -172,7 +108,6 @@ protected:
     {
       unique_ptr<T> cloned_data = clone(data);
       outPort->push(move(cloned_data));
-
     }
   }
 
@@ -195,6 +130,51 @@ public:
 
   ~ForkElement() {}
 
+};
+
+
+template <typename TI, typename TO>
+class StandardIOElement : public StandardInputElement<TI>
+{
+protected:
+  std::unique_ptr<ItOutputPort<TO>> outputPort = nullptr;
+
+  virtual std::unique_ptr<TO> transformFunc(const std::unique_ptr<TI> &data) = 0;
+
+  virtual void handleStateChanged() override
+  {
+    StandardInputElement<TI>::handleStateChanged();
+    if (outputPort != nullptr)
+    {
+      outputPort->setState(this->getState());
+    }
+  }
+
+  void processFunc(const unique_ptr<TI> &data) override
+  {
+    auto result = transformFunc(data);
+    if (result && outputPort != nullptr)
+    {
+      outputPort->push(move(result));
+    }
+  }
+
+  void setOutputPort(std::unique_ptr<ItOutputPort<TO>> port)
+  {
+    this->outputPort = move(port);
+  }
+
+public:
+  StandardIOElement(std::string elName) : StandardInputElement<TI>(elName)
+  {
+    outputPort = nullptr;
+  }
+
+  ~StandardIOElement() {}
+
+  ItOutputPort<TO>* getOutputPort() const {
+    return outputPort ? outputPort.get() : nullptr;
+  }
 };
 
 #endif // IT_ELEMENT_H
