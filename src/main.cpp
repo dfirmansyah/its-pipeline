@@ -1,10 +1,7 @@
 #include <chrono>
 #include "common.h"
 #include "thread_safe_queue.h"
-#include "pipeline/pipeline_element.h"
 #include "pipeline/pipeline.h"
-#include "pipeline/udp_listener.h"
-#include "pipeline/spx_processor_element.h"
 
 #include "pipeline/it_port.h"
 #include "pipeline/it_element.h"
@@ -53,37 +50,7 @@ public:
 
 };
 
-static void Test3()
-{
-  // const int port = 4378;
-  unique_ptr<UdpListener> udpListener(new UdpListener(4378));
-  unique_ptr<SpxProcessorElement> spxProcessorElement(new SpxProcessorElement());
-  unique_ptr<Logger<RadarVideoSweep>> loggerEl(new Logger<RadarVideoSweep>());
-
-
-  try
-  {
-    ipl_connect(udpListener.get(), spxProcessorElement.get());
-    ipl_connect(spxProcessorElement.get(), loggerEl.get());
-    udpListener->start();
-    spxProcessorElement->start();
-    loggerEl->start();
-
-    while(true){}
-    
-    udpListener->stop();
-    spxProcessorElement->stop();
-    loggerEl->stop();
-    
-    cout << "--- Pipelline execution complete. ---" << endl;
-  }
-  catch (const exception &e)
-  {
-    cerr << "Pipeline Chain Error: " << e.what() << endl;
-  }
-}
-
-static void Test4()
+static void Test1()
 {
   try
   {
@@ -132,7 +99,7 @@ static void Test4()
   }
 }
 
-static void Test5()
+static void Test2()
 {
   try
   {
@@ -174,9 +141,8 @@ static void Test5()
 
 int main()
 {
-  // Test3();
-  // Test4();
-  Test5();
+  // Test1();
+  Test2();
 
   return 0;
 }
